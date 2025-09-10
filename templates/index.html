@@ -1,0 +1,142 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AI Single Meal Suggestion</title>
+  <style>
+    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem; }
+    label { display:block; margin-top: 0.8rem; }
+    input, select, textarea { width:100%; padding:0.5rem; border:1px solid #ccc; border-radius:6px; }
+    button { margin-top:1rem; padding:0.6rem 1rem; border-radius:8px; border:none; cursor:pointer; }
+    .result { margin-top:1.2rem; border:1px solid #eee; padding:1rem; border-radius:8px; background:#fafafa; }
+    pre { white-space:pre-wrap; }
+  </style>
+</head>
+<body>
+  <h1>AI Meal Suggestion (Single Meal)</h1>
+  <form id="mealForm" onsubmit="return false;">
+    <label>
+      Cuisine (optional)
+      <input id="cuisine" placeholder="e.g., Indian, Italian">
+    </label>
+
+    <label>
+      Meal type
+      <select id="meal_type">
+        <option>Any</option>
+        <option>Breakfast</option>
+        <option>Lunch</option>
+        <option>Dinner</option>
+        <option>Snack</option>
+      </select>
+    </label>
+
+    <label>
+      Dietary preference
+      <select id="dietary">
+        <option>None</option>
+        <option>Vegetarian</option>
+        <option>Vegan</option>
+        <option>Keto</option>
+        <option>Gluten-free</option>
+      </select>
+    </label>
+
+    <label>
+      Allergies / avoid (comma separated)
+      <input id="allergies" placeholder="e.g., peanuts, shellfish">
+    </label>
+
+    <label>
+      Ingredients on hand (optional, comma separated)
+      <textarea id="ingredients_on_hand" rows="3" placeholder="e.g., chicken breast, rice, tomatoes"></textarea>
+    </label>
+
+    <label>
+      Calories target (optional)
+      <input id="calories_target" placeholder="e.g., 500">
+    </label>
+
+    <button id="submitBtn">Get Meal Suggestion</button>
+  </form>
+
+  <div id="output" class="result" style="display:none;">
+    <h2 id="mealName"></h2>
+    <p id="mealDesc"></p>
+
+    <h3>Ingredients</h3>
+    <ul id="ingredientsList"></ul>
+
+    <h3>Steps</h3>
+    <ol id="stepsList"></ol>
+
+    <p><strong>Calories estimate:</strong> <span id="calories"></span></p>
+
+    <h4>Shopping list</h4>
+    <ul id="shoppingList"></ul>
+
+    <h4>Raw JSON</h4>
+    <pre id="rawJson"></pre>
+  </div>
+
+  <script>
+    document.getElementById('submitBtn').addEventListener('click', async () => {
+      const payload = {
+        cuisine: document.getElementById('cuisine').value,
+        meal_type: document.getElementById('meal_type').value,
+        dietary: document.getElementById('dietary').value,
+        allergies: document.getElementById('allergies').value,
+        ingredients_on_hand: document.getElementById('ingredients_on_hand').value,
+        calories_target: document.getElementById('calories_target').value
+      };
+
+      document.getElementById('submitBtn').disabled = true;
+      document.getElementById('submitBtn').innerText = 'Thinking...';
+
+      try {
+        const res = await fetch('/suggest', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!data.ok) {
+          alert('Error: ' + (data.error || JSON.stringify(data)));
+          return;
+        }
+        const meal = data.meal || {};
+        document.getElementById('output').style.display = 'block';
+        document.getElementById('mealName').innerText = meal.name || 'Unnamed meal';
+        document.getElementById('mealDesc').innerText = meal.description || '';
+        const ingredientsList = document.getElementById('ingredientsList');
+        ingredientsList.innerHTML = '';
+        (meal.ingredients || []).forEach(i => {
+          const li = document.createElement('li');
+          li.innerText = i;
+          ingredientsList.appendChild(li);
+        });
+        const stepsList = document.getElementById('stepsList');
+        stepsList.innerHTML = '';
+        (meal.steps || []).forEach(s => {
+          const li = document.createElement('li');
+          li.innerText = s;
+          stepsList.appendChild(li);
+        });
+        document.getElementById('calories').innerText = meal.calories_estimate || '—';
+        const sl = document.getElementById('shoppingList');
+        sl.innerHTML = '';
+        (meal.shopping_list || []).forEach(x => {
+          const li = document.createElement('li'); li.innerText = x; sl.appendChild(li);
+        });
+        document.getElementById('rawJson').innerText = JSON.stringify(meal, null, 2);
+      } catch (err) {
+        alert('Request failed: ' + err.message);
+      } finally {
+        document.getElementById('submitBtn').disabled = false;
+        document.getElementById('submitBtn').innerText = 'Get Meal Suggestion';
+      }
+    });
+  </script>
+</body>
+</html>
